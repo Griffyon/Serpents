@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torn Targets</title>
+<style>
+  :root { --bg:#14161a; --panel:#1e2127; --line:#2e333b; --text:#e6e8eb; --muted:#8b929c; --accent:#6aa9ff;
+          --ok:#4cc38a; --warn:#e8b04a; --bad:#e5604f; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f5f7; --panel:#fff; --line:#d9dce1; --text:#1c1f24; --muted:#6a7280; --accent:#1f6feb; --ok:#1a8a5a; --warn:#a8741a; --bad:#c33a2a; }
+  }
+  * { box-sizing:border-box }
+  [hidden] { display:none !important }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,sans-serif; padding:16px; }
+  h1 { font-size:18px; margin:0 0 12px }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center }
+  input, button, select { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 10px; }
+  input[type=password], input[type=text] { min-width:200px }
+  button { cursor:pointer } button:hover:not(:disabled) { border-color:var(--accent) }
+  button:disabled, input:disabled, fieldset:disabled { opacity:.5; cursor:not-allowed }
+  fieldset { border:0; padding:0; margin:0 }
+  label { color:var(--muted) }
+  .muted { color:var(--muted) } .err { color:var(--bad) }
+  table { width:100%; border-collapse:collapse }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap }
+  th { color:var(--muted); font-weight:600; cursor:pointer; user-select:none }
+  .wrap { overflow-x:auto }
+  .ball { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:middle; cursor:help;
+          box-shadow:0 1px 2px rgba(0,0,0,.45), inset 0 -2px 3px rgba(0,0,0,.3) }
+  .ball.on   { background:radial-gradient(circle at 35% 30%, #b6f5cf 0, #3fd07f 35%, #1a8a4a 100%) }
+  .ball.idle { background:radial-gradient(circle at 35% 30%, #ffe0b0 0, #f5a030 35%, #b86a0c 100%) }
+  .ball.off  { background:radial-gradient(circle at 35% 30%, #e4e6ea 0, #9aa0a8 35%, #5c626b 100%) }
+  .hosp { color:var(--bad) } .trav { color:var(--accent) }
+  td.soon { background:var(--bad); color:#fff; font-weight:700; font-variant-numeric:tabular-nums }
+  button.cp { padding:1px 6px; margin-left:6px; vertical-align:middle }
+  a.atk { text-decoration:none; font-size:18px }
+  .results button { display:block; width:100%; text-align:left; margin-top:4px }
+  .ff { font-variant-numeric:tabular-nums; font-weight:600 }
+</style>
+</head>
+<body>
+<h1>Torn Targets</h1>
+
+<div class="panel">
+  <div class="row">
+    <label>Torn API key <input id="tornKey" type="password" autocomplete="off" placeholder="16 chars"></label>
+    <label>FFScouter key <input id="ffKey" type="password" autocomplete="off" placeholder="16 chars"></label>
+    <button id="login">Log in</button>
+    <button id="logout" hidden>Log out</button>
+    <span id="loginMsg" class="muted"></span>
+  </div>
+  <div class="muted" style="margin-top:6px">Keys are only sent to api.torn.com and ffscouter.com from your browser. No backend. Keys and the last faction are saved in this browser's local storage.</div>
+</div>
+
+<fieldset id="app" disabled>
+  <div class="panel">
+    <div class="row">
+      <input id="q" type="text" placeholder="Faction name or numeric ID">
+      <button id="search">Search</button>
+      <label>Refresh <select id="interval">
+        <option value="10" selected>10 s</option><option value="15">15 s</option>
+        <option value="30">30 s</option><option value="60">60 s</option><option value="0">manual</option></select></label>
+      <button id="refresh">Refresh now</button>
+      <span id="status" class="muted"></span>
+    </div>
+    <div id="results" class="results"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="margin-bottom:8px">
+      <button id="toggleFilters" aria-expanded="false" aria-controls="filters">Show filters</button>
+      <span id="count" class="muted"></span>
+    </div>
+    <div id="filters" class="row" style="margin-bottom:8px" hidden>
+      <label><input id="fOn" type="checkbox"> <span class="ball on"></span> online</label>
+      <label><input id="fIdle" type="checkbox"> <span class="ball idle"></span> idle</label>
+      <label><input id="fOff" type="checkbox"> <span class="ball off"></span> offline</label>
+      <label>FF between <input id="ffMin" type="number" min="0" step="0.01" style="width:80px"></label>
+      <label>and <input id="ffMax" type="number" min="0" step="0.01" style="width:80px"></label>
+      <button id="clearFilter">Clear</button>
+    </div>
+    <div id="factionTitle" style="font-weight:600;margin-bottom:6px"></div>
+    <div class="wrap">
+      <table>
+        <thead><tr>
+          <th data-k="name">User</th><th data-k="id">ID</th><th data-k="level">Lvl</th>
+          <th data-k="act">Status</th><th data-k="ff">FF</th><th data-k="bs">Est. stats</th>
+          <th data-k="state">State</th><th data-k="hosp">Hospital</th><th>Attack</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</fieldset>
+
+<script>
+const $ = id => document.getElementById(id);
+const TORN = 'https://api.torn.com/v2', FF = 'https://ffscouter.com/api/v1';
+const FF_CHUNK = 205;          // FFScouter max targets per request
+const FF_REFRESH_MS = 60000;   // FF data is cached server-side ~5 min; no need to fetch every cycle
+
+const st = { tornKey:'', ffKey:'', faction:null, members:[], ff:new Map(), ffAt:0,
+             timer:null, tick:null, busy:false, sort:{k:'ff', dir:-1} };
+
+// ---- storage (best effort) ----
+try {
+  const s = JSON.parse(localStorage.getItem('tt-keys') || 'null');
+  if (s) { $('tornKey').value = s.t; $('ffKey').value = s.f; }
+} catch {}
+
+// ---- api ----
+async function tornGet(path, params = {}) {
+  const u = new URL(TORN + path);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  const r = await fetch(u, { headers: { Authorization: 'ApiKey ' + st.tornKey } });
+  const j = await r.json();
+  if (j.error) throw new Error('Torn: ' + j.error.error + ' (code ' + j.error.code + ')');
+  return j;
+}
+async function ffGet(ids) {
+  const u = new URL(FF + '/get-stats');
+  u.searchParams.set('key', st.ffKey);
+  u.searchParams.set('targets', ids.join(','));
+  const r = await fetch(u);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('FFScouter: ' + (j.error || r.status) + (j.retry_after_seconds ? ' (retry in ' + j.retry_after_seconds + 's)' : ''));
+  return Array.isArray(j) ? j : (j.data || j.results || []);
+}
+
+// ---- login ----
+$('login').onclick = async () => {
+  st.tornKey = $('tornKey').value.trim(); st.ffKey = $('ffKey').value.trim();
+  const msg = $('loginMsg'); msg.className = 'muted';
+  if (!/^[A-Za-z0-9]{16}$/.test(st.tornKey) || !/^[A-Za-z0-9]{16}$/.test(st.ffKey)) {
+    msg.className = 'err'; msg.textContent = 'Both keys must be 16 alphanumeric characters.'; return;
+  }
+  msg.textContent = 'Checking…';
+  try {
+    await tornGet('/faction/search', { name: 'a', limit: 1 });
+    await ffGet([1]);
+  } catch (e) { msg.className = 'err'; msg.textContent = e.message; return; }
+  try { localStorage.setItem('tt-keys', JSON.stringify({ t: st.tornKey, f: st.ffKey })); } catch {}
+  msg.textContent = 'Logged in.';
+  $('app').disabled = false; $('login').hidden = true; $('logout').hidden = false;
+  $('tornKey').disabled = $('ffKey').disabled = true;
+  try {   // reopen the last selected faction
+    const f = JSON.parse(localStorage.getItem('tt-faction') || 'null');
+    if (f && f.id) { $('q').value = f.name; pick(f); }
+  } catch {}
+};
+$('logout').onclick = () => {
+  stop(); st.tornKey = st.ffKey = ''; st.faction = null; st.members = [];
+  $('app').disabled = true; $('login').hidden = false; $('logout').hidden = true;
+  $('tornKey').disabled = $('ffKey').disabled = false; $('loginMsg').textContent = '';
+  $('rows').innerHTML = ''; $('factionTitle').textContent = ''; $('results').innerHTML = '';
+  // keys and last faction stay in localStorage; the key fields remain filled for a one-click login
+};
+
+// ---- faction search ----
+$('search').onclick = doSearch;
+$('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+async function doSearch() {
+  const q = $('q').value.trim(); if (!q) return;
+  const res = $('results'); res.innerHTML = '';
+  try {
+    if (/^\d+$/.test(q)) {
+      const b = await tornGet('/faction/' + q + '/basic');
+      return pick({ id: b.basic.id, name: b.basic.name });
+    }
+    const j = await tornGet('/faction/search', { name: q, limit: 20 });
+    const list = j.search || [];
+    if (!list.length) res.textContent = 'No factions found.';
+    for (const f of list) {
+      const b = document.createElement('button');
+      b.textContent = `${f.name}${f.tag ? ' [' + f.tag + ']' : ''} · ID ${f.id} · ${f.members ?? '?'} members`;
+      b.onclick = () => pick(f);
+      res.appendChild(b);
+    }
+  } catch (e) { setStatus(e.message, true); }
+}
+function pick(f) {
+  $('results').innerHTML = '';
+  st.faction = { id: f.id, name: f.name }; st.members = []; st.ff = new Map(); st.ffAt = 0;
+  try { localStorage.setItem('tt-faction', JSON.stringify(st.faction)); } catch {}
+  $('factionTitle').textContent = `${f.name} [${f.id}]`;
+  start();
+}
+
+// ---- polling ----
+function stop() { clearInterval(st.timer); clearInterval(st.tick); st.timer = st.tick = null; }
+function start() {
+  stop(); refresh();
+  const s = +$('interval').value;
+  if (s) st.timer = setInterval(refresh, s * 1000);
+  st.tick = setInterval(render, 1000); // hospital countdown between fetches
+}
+$('interval').onchange = () => st.faction && start();
+$('refresh').onclick = () => st.faction && refresh();
+
+async function refresh() {
+  if (st.busy || !st.faction) return;
+  st.busy = true;
+  const fac = st.faction;
+  try {
+    const j = await tornGet('/faction/' + fac.id + '/members');
+    if (st.faction !== fac) { st.busy = false; return refresh(); } // switched/logged out mid-flight
+    st.members = j.members || [];
+    if (Date.now() - st.ffAt > FF_REFRESH_MS) {
+      const ids = st.members.map(m => m.id);
+      for (let i = 0; i < ids.length; i += FF_CHUNK)
+        for (const r of await ffGet(ids.slice(i, i + FF_CHUNK))) if (st.faction === fac) st.ff.set(r.player_id, r);
+      st.ffAt = Date.now();
+    }
+    setStatus('Updated ' + new Date().toLocaleTimeString());
+  } catch (e) { setStatus(e.message, true); }
+  st.busy = false; render();
+}
+function setStatus(t, bad) { const s = $('status'); s.textContent = t; s.className = bad ? 'err' : 'muted'; }
+
+// ---- render ----
+const now = () => Math.floor(Date.now() / 1000);
+function view(m) {
+  const f = st.ff.get(m.id);
+  const hosp = m.status.state === 'Hospital' && m.status.until ? Math.max(0, m.status.until - now()) : null;
+  const act = m.last_action;
+  const idleFor = now() - act.timestamp;
+  return { m, name: m.name, id: m.id, level: m.level, ff: f?.fair_fight ?? null, bs: f?.bs_estimate ?? null,
+           bsH: f?.bs_estimate_human ?? '', state: m.status.state, hosp, act: act.status, idleFor };
+}
+function actBall(v) {
+  const c = v.act === 'Online' ? 'on' : v.act === 'Idle' ? 'idle' : 'off';
+  const label = v.act === 'Online' ? 'Online' : v.act === 'Idle' ? 'Idle' : 'Offline';
+  let tip = label;
+  if (c !== 'on') {   // hover: when the last action was
+    const ts = v.m.last_action.timestamp;
+    tip += ' – last action ' + v.m.last_action.relative + ' (' + new Date(ts * 1000).toLocaleString() + ')';
+  }
+  return `<span class="ball ${c}" title="${esc(tip)}" aria-label="${esc(tip)}"></span>`;
+}
+function render() {
+  const all = st.members.map(view);
+  const rows = all.filter(passes);
+  updateToggle();
+  $('count').textContent = st.faction ? `${rows.length} of ${all.length} shown` : '';
+  const { k, dir } = st.sort;
+  const key = { name: v => v.name.toLowerCase(), id: v => v.id, level: v => v.level, ff: v => v.ff, bs: v => v.bs,
+                state: v => v.state, hosp: v => v.hosp, act: v => (({ Online: 0, Idle: 1, Offline: 2 }[v.act] ?? 3) * 1e9 + v.idleFor) }[k];
+  rows.sort((a, b) => {
+    const x = key(a), y = key(b);
+    if (x == null && y == null) return 0;
+    if (x == null) return 1; if (y == null) return -1;   // unknowns last
+    return (x < y ? -1 : x > y ? 1 : 0) * dir;
+  });
+  $('rows').innerHTML = rows.map(v => {
+    const sc = v.state === 'Hospital' ? 'hosp' : (v.state === 'Traveling' || v.state === 'Abroad') ? 'trav' : '';
+    return `<tr>
+      <td><a href="https://www.torn.com/profiles.php?XID=${v.id}" target="_blank" rel="noopener">${esc(v.name)}</a></td>
+      <td>${v.id}</td><td>${v.level}</td>
+      <td>${actBall(v)}</td>
+      <td class="ff">${v.ff == null ? '<span class="muted">?</span>' : v.ff.toFixed(2)}</td>
+      <td class="muted">${esc(v.bsH)}</td>
+      <td class="${sc}">${esc(v.state)}</td>
+      <td class="${v.hosp != null && v.hosp < 30 ? 'soon' : sc}">${v.hosp == null ? '' : hms(v.hosp)}</td>
+      <td><a class="atk" title="Attack" target="_blank" rel="noopener"
+             href="${attackUrl(v.id)}">⚔️</a>
+          <button class="cp" data-id="${v.id}" title="Copy: ${esc(copyText(v))}">${Date.now() - (copied[v.id] || 0) < 1500 ? '✓' : '📋'}</button></td></tr>`;
+  }).join('');
+}
+// Filters: nothing ticked / empty fields = show everything.
+function passes(v) {
+  const on = $('fOn').checked, idle = $('fIdle').checked, off = $('fOff').checked;
+  if (on || idle || off) {
+    const ok = v.act === 'Online' ? on : v.act === 'Idle' ? idle : off;
+    if (!ok) return false;
+  }
+  const lo = parseFloat($('ffMin').value), hi = parseFloat($('ffMax').value);
+  if (!isNaN(lo) || !isNaN(hi)) {
+    if (v.ff == null) return false;   // unknown FF can't be in a range
+    if (!isNaN(lo) && v.ff < lo) return false;
+    if (!isNaN(hi) && v.ff > hi) return false;
+  }
+  return true;
+}
+['fOn', 'fIdle', 'fOff', 'ffMin', 'ffMax'].forEach(id => $(id).oninput = render);
+$('clearFilter').onclick = () => {
+  ['fOn', 'fIdle', 'fOff'].forEach(id => $(id).checked = false);
+  $('ffMin').value = $('ffMax').value = ''; render();
+};
+const filtersActive = () => ['fOn', 'fIdle', 'fOff'].some(id => $(id).checked) || $('ffMin').value !== '' || $('ffMax').value !== '';
+function showFilters(open) {
+  $('filters').hidden = !open;
+  $('toggleFilters').setAttribute('aria-expanded', open);
+  updateToggle();
+}
+function updateToggle() {   // filters stay applied while hidden, so flag that on the button
+  const open = !$('filters').hidden;
+  $('toggleFilters').textContent = (open ? 'Hide filters' : 'Show filters') + (filtersActive() ? ' (active)' : '');
+}
+$('toggleFilters').onclick = () => {
+  const open = $('filters').hidden;
+  showFilters(open);
+  try { localStorage.setItem('tt-filters-open', open ? '1' : '0'); } catch {}
+};
+try { showFilters(localStorage.getItem('tt-filters-open') === '1'); } catch {}
+
+const attackUrl = id => `https://www.torn.com/page.php?sid=attack&user2ID=${id}`;
+// "<name> - <attack link> - [hh:mm:ss if in hospital] [ONLINE if online] [FF x.xx if known]"
+function copyText(v) {
+  const info = [];
+  if (v.hosp != null) info.push(hms(v.hosp));
+  if (v.act === 'Online') info.push('ONLINE');
+  if (v.ff != null) info.push('FF ' + v.ff.toFixed(2));
+  const parts = [v.name, attackUrl(v.id)];
+  if (info.length) parts.push(info.join(' '));
+  return parts.join(' - ');
+}
+const copied = {};
+async function copyToClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return; } catch {}
+  const t = document.createElement('textarea');   // fallback for non-secure contexts
+  t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+}
+$('rows').addEventListener('click', async e => {
+  const b = e.target.closest('button.cp'); if (!b) return;
+  const m = st.members.find(x => x.id === +b.dataset.id); if (!m) return;
+  await copyToClipboard(copyText(view(m)));
+  copied[m.id] = Date.now(); render();
+});
+
+function hms(s) {
+  const p = n => String(n).padStart(2, '0');
+  return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60);
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
+  const k = th.dataset.k;
+  st.sort = { k, dir: st.sort.k === k ? -st.sort.dir : 1 }; render();
+});
+</script>
+</body>
+</html>

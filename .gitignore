@@ -1,0 +1,42 @@
+# Secrets – never commit API keys
+.env
+.env.*
+!.env.example
+*.key
+secrets.json
+appsettings.*.local.json
+
+# .NET build output
+bin/
+obj/
+publish/
+out/
+*.user
+*.suo
+*.nupkg
+*.binlog
+TestResults/
+*.log
+
+# Docker image exports
+*.tar
+*.tar.gz
+
+# IDEs and editors
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local settings
+.claude/settings.local.json

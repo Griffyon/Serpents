@@ -40,3 +40,7 @@ desktop.ini
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Secrets: any .secret* file must never be committed
+.secret*
+*.secret

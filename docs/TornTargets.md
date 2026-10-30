@@ -14,7 +14,7 @@ Open `TornTargets/index.html` in a modern browser (double-click, or serve the fo
 1. Enter your Torn API key and your FFScouter API key.
 2. Click **Log in**. Both keys are checked against their services.
 3. Until you are logged in, everything below the login box is disabled.
-4. Click **Log out** to lock the page again.
+4. Once logged in, the login box disappears and only a **Log out** button remains, top right next to the title. Click it to lock the page and show the login box again.
 
 Storage (browser local storage):
 - Your keys are saved after a successful login, so the fields are filled in next time. You still click **Log in** each visit.
@@ -34,10 +34,10 @@ Storage (browser local storage):
 | FF | Fair Fight from FFScouter. `?` means FFScouter has no data for that player. |
 | Est. stats | FFScouter's battle-stat estimate. |
 | State | Torn state: Okay, Hospital, Traveling, Abroad, Jail, and so on. |
-| Hospital | Time left in hospital as `hh:mm:ss`, counting down every second. Blank if not in hospital. Under 30 seconds the cell turns solid red with bold white text, so a player about to leave hospital stands out. |
+| Hospital | Time left in hospital as `hh:mm:ss`, counting down every second. Blank if not in hospital. When the countdown reaches zero the player is treated as out of hospital straight away (state Okay, no time), so when sorted on Hospital the player drops out of the hospital group at once. Under 30 seconds the cell turns solid red with bold white text, so a player about to leave hospital stands out. |
 | Attack | ⚔️ opens the Torn attack page for that player in a new tab. Next to it, 📋 copies a one-line summary to the clipboard (a ✓ appears briefly): `<username> - <attack link> - <other info>`, where the other info is `[hh:mm:ss] [ONLINE] [FF x.xx]`. If there is no other info, the last ` - ` part is left out. The time is the remaining hospital time and is left out when the player is not in hospital; `ONLINE` is added only when the player is online; the FF part is left out when FF is unknown. Example: `Bob - https://www.torn.com/page.php?sid=attack&user2ID=123 - 00:12:34 ONLINE FF 3.45`. Hover 📋 to preview the text. |
 
-Click a column header to sort; click again to reverse. Unknown values always sort last.
+Click any column header (all except Attack) to sort A–Z / lowest first; click again to reverse (Z–A / highest first). The active column shows ▲ for ascending or ▼ for descending. Unknown values always sort last. The default sort is FF, from the highest value to the lowest.
 
 ## Filters
 Filters are hidden by default. Click **Show filters** above the table to open them and **Hide filters** to close them. Whether they are open is remembered in this browser. Filters you have set stay applied while hidden; the button then reads "Show filters (active)".
@@ -57,3 +57,12 @@ In the filter bar:
 - "Incorrect key" – check the Torn key. An FFScouter error means the FFScouter key was rejected.
 - FFScouter rate limit (HTTP 429) shows a retry time in the status line.
 - FF shows `?` for everyone – the FFScouter key may lack data; check it on ffscouter.com.
+
+## Mobile
+The page is responsive. On screens up to 640 px wide:
+- The key fields, search box and buttons stack to full width and get larger touch targets.
+- Each player is shown as a card with two lines: status ball, username and FF on the first line; hospital time (or the state, if not Okay) with the ⚔️/📋 buttons on the second line. The ID, Lvl, Est. stats and State columns are hidden.
+- The column headers become a row of sort links (User, Status, FF, Hospital) above the cards.
+- There is never a horizontal scrollbar.
+
+On wider screens the full table with all columns is shown; if it is too wide for your screen it scrolls sideways.

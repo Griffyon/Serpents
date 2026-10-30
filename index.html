@@ -13,14 +13,56 @@
   * { box-sizing:border-box }
   [hidden] { display:none !important }
   body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,sans-serif; padding:16px; }
-  h1 { font-size:18px; margin:0 0 12px }
+  h1 { font-size:18px; margin:0 }
+  .topbar { justify-content:space-between; margin-bottom:12px }
+  label:has(input[type=checkbox]) { display:inline-flex; align-items:center; gap:5px }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
   .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center }
   input, button, select { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 10px; }
   input[type=password], input[type=text] { min-width:200px }
+  @media (max-width:640px) {
+    body { padding:10px; font-size:15px }
+    .opt { display:none }                       /* ID, level, est. stats and state are hidden on small screens */
+    td .mstate { display:inline }                  /* ...state is shown in the hospital column instead when not Okay */
+    table { font-size:14px }
+    th, td { padding:8px 4px }
+    input, button, select { min-height:40px }   /* touch-friendly targets */
+    input[type=password], input[type=text] { min-width:0; width:100% }
+    #tornKey, #ffKey, #q { width:100% }
+    .row > label:has(input:not([type=checkbox])) { flex:1 1 100% }   /* key fields stack full width */
+    #filters label:has(input[type=number]) { flex:1 1 40% }
+    #filters input[type=number] { width:100%!important }
+    #login { flex:1 }
+    #q { flex:1 1 100% }
+    #search, #refresh { flex:1 1 40% }
+    #search, #refresh { order:2 } #intervalLabel { order:3 } #status { order:4 }
+    #intervalLabel { flex:1 1 auto; display:flex; align-items:center; gap:8px }
+    #intervalLabel select { flex:1 }
+    #status { flex:1 1 100% }
+    a.atk, button.cp { font-size:20px; padding:2px }
+    button.cp { margin-left:4px }
+    /* card layout: two lines per player, so the table never needs sideways scrolling */
+    .wrap { overflow-x:hidden }
+    table, tbody { display:block }
+    thead { display:block; margin-bottom:4px }
+    thead tr { display:flex; flex-wrap:wrap; gap:4px 14px }
+    thead th { border:0; padding:4px 0; white-space:nowrap }
+    thead th:last-child { display:none }               /* no sorting on the Attack column */
+    tbody tr { display:grid; grid-template-columns:24px minmax(0,1fr) auto; grid-template-areas:"act name ff" "hosp hosp btn";
+               align-items:center; gap:2px 8px; padding:8px 0; border-bottom:1px solid var(--line) }
+    tbody td { display:block; border:0; padding:0; white-space:normal; min-width:0 }
+    tbody td:nth-child(1) { grid-area:name; overflow-wrap:anywhere; font-size:16px }
+    tbody td:nth-child(4) { grid-area:act; text-align:center }
+    tbody td:nth-child(5) { grid-area:ff; font-size:16px }
+    tbody td:nth-child(8) { grid-area:hosp; padding-left:32px }
+    tbody td:nth-child(8).soon { padding:2px 8px; margin-left:32px; justify-self:start }
+    tbody td:nth-child(9) { grid-area:btn; white-space:nowrap }
+  }
   button { cursor:pointer } button:hover:not(:disabled) { border-color:var(--accent) }
   button:disabled, input:disabled, fieldset:disabled { opacity:.5; cursor:not-allowed }
-  fieldset { border:0; padding:0; margin:0 }
+  fieldset { border:0; padding:0; margin:0; min-width:0 }   /* default min-width:min-content made the page wider than the screen */
+  .panel { min-width:0 }
+  .mstate { display:none }
   label { color:var(--muted) }
   .muted { color:var(--muted) } .err { color:var(--bad) }
   table { width:100%; border-collapse:collapse }
@@ -34,21 +76,23 @@
   .ball.off  { background:radial-gradient(circle at 35% 30%, #e4e6ea 0, #9aa0a8 35%, #5c626b 100%) }
   .hosp { color:var(--bad) } .trav { color:var(--accent) }
   td.soon { background:var(--bad); color:#fff; font-weight:700; font-variant-numeric:tabular-nums }
-  button.cp { padding:1px 6px; margin-left:6px; vertical-align:middle }
+  button.cp { background:none; border:0; padding:0; margin-left:8px; font-size:18px; line-height:1; vertical-align:baseline; cursor:pointer }
+  button.cp:hover:not(:disabled) { border:0; filter:brightness(1.3) }
+  th[data-k]:hover { color:var(--text) }
+  th .arr { display:inline-block; width:1em; color:var(--accent) }
   a.atk { text-decoration:none; font-size:18px }
   .results button { display:block; width:100%; text-align:left; margin-top:4px }
   .ff { font-variant-numeric:tabular-nums; font-weight:600 }
 </style>
 </head>
 <body>
-<h1>Torn Targets</h1>
+<div class="row topbar"><h1>Torn Targets</h1><button id="logout" hidden>Log out</button></div>
 
-<div class="panel">
+<div class="panel" id="loginPanel">
   <div class="row">
     <label>Torn API key <input id="tornKey" type="password" autocomplete="off" placeholder="16 chars"></label>
     <label>FFScouter key <input id="ffKey" type="password" autocomplete="off" placeholder="16 chars"></label>
     <button id="login">Log in</button>
-    <button id="logout" hidden>Log out</button>
     <span id="loginMsg" class="muted"></span>
   </div>
   <div class="muted" style="margin-top:6px">Keys are only sent to api.torn.com and ffscouter.com from your browser. No backend. Keys and the last faction are saved in this browser's local storage.</div>
@@ -59,7 +103,7 @@
     <div class="row">
       <input id="q" type="text" placeholder="Faction name or numeric ID">
       <button id="search">Search</button>
-      <label>Refresh <select id="interval">
+      <label id="intervalLabel">Refresh <select id="interval">
         <option value="10" selected>10 s</option><option value="15">15 s</option>
         <option value="30">30 s</option><option value="60">60 s</option><option value="0">manual</option></select></label>
       <button id="refresh">Refresh now</button>
@@ -85,9 +129,9 @@
     <div class="wrap">
       <table>
         <thead><tr>
-          <th data-k="name">User</th><th data-k="id">ID</th><th data-k="level">Lvl</th>
-          <th data-k="act">Status</th><th data-k="ff">FF</th><th data-k="bs">Est. stats</th>
-          <th data-k="state">State</th><th data-k="hosp">Hospital</th><th>Attack</th>
+          <th data-k="name">User</th><th data-k="id" class="opt">ID</th><th data-k="level" class="opt">Lvl</th>
+          <th data-k="act">Status</th><th data-k="ff">FF</th><th data-k="bs" class="opt">Est. stats</th>
+          <th data-k="state" class="opt">State</th><th data-k="hosp">Hospital</th><th>Attack</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -143,7 +187,7 @@ $('login').onclick = async () => {
   } catch (e) { msg.className = 'err'; msg.textContent = e.message; return; }
   try { localStorage.setItem('tt-keys', JSON.stringify({ t: st.tornKey, f: st.ffKey })); } catch {}
   msg.textContent = 'Logged in.';
-  $('app').disabled = false; $('login').hidden = true; $('logout').hidden = false;
+  $('app').disabled = false; $('loginPanel').hidden = true; $('logout').hidden = false;
   $('tornKey').disabled = $('ffKey').disabled = true;
   try {   // reopen the last selected faction
     const f = JSON.parse(localStorage.getItem('tt-faction') || 'null');
@@ -152,7 +196,7 @@ $('login').onclick = async () => {
 };
 $('logout').onclick = () => {
   stop(); st.tornKey = st.ffKey = ''; st.faction = null; st.members = [];
-  $('app').disabled = true; $('login').hidden = false; $('logout').hidden = true;
+  $('app').disabled = true; $('loginPanel').hidden = false; $('logout').hidden = true;
   $('tornKey').disabled = $('ffKey').disabled = false; $('loginMsg').textContent = '';
   $('rows').innerHTML = ''; $('factionTitle').textContent = ''; $('results').innerHTML = '';
   // keys and last faction stay in localStorage; the key fields remain filled for a one-click login
@@ -223,11 +267,14 @@ function setStatus(t, bad) { const s = $('status'); s.textContent = t; s.classNa
 const now = () => Math.floor(Date.now() / 1000);
 function view(m) {
   const f = st.ff.get(m.id);
-  const hosp = m.status.state === 'Hospital' && m.status.until ? Math.max(0, m.status.until - now()) : null;
+  // once the countdown hits 0 the player is out of hospital, even before the next refresh confirms it
+  let hosp = m.status.state === 'Hospital' && m.status.until ? m.status.until - now() : null;
+  const out = hosp !== null && hosp <= 0;
+  if (hosp !== null && out) hosp = null;
   const act = m.last_action;
   const idleFor = now() - act.timestamp;
   return { m, name: m.name, id: m.id, level: m.level, ff: f?.fair_fight ?? null, bs: f?.bs_estimate ?? null,
-           bsH: f?.bs_estimate_human ?? '', state: m.status.state, hosp, act: act.status, idleFor };
+           bsH: f?.bs_estimate_human ?? '', state: out ? 'Okay' : m.status.state, hosp, act: act.status, idleFor };
 }
 function actBall(v) {
   const c = v.act === 'Online' ? 'on' : v.act === 'Idle' ? 'idle' : 'off';
@@ -245,6 +292,7 @@ function render() {
   updateToggle();
   $('count').textContent = st.faction ? `${rows.length} of ${all.length} shown` : '';
   const { k, dir } = st.sort;
+  updateArrows();
   const key = { name: v => v.name.toLowerCase(), id: v => v.id, level: v => v.level, ff: v => v.ff, bs: v => v.bs,
                 state: v => v.state, hosp: v => v.hosp, act: v => (({ Online: 0, Idle: 1, Offline: 2 }[v.act] ?? 3) * 1e9 + v.idleFor) }[k];
   rows.sort((a, b) => {
@@ -257,12 +305,12 @@ function render() {
     const sc = v.state === 'Hospital' ? 'hosp' : (v.state === 'Traveling' || v.state === 'Abroad') ? 'trav' : '';
     return `<tr>
       <td><a href="https://www.torn.com/profiles.php?XID=${v.id}" target="_blank" rel="noopener">${esc(v.name)}</a></td>
-      <td>${v.id}</td><td>${v.level}</td>
+      <td class="opt">${v.id}</td><td class="opt">${v.level}</td>
       <td>${actBall(v)}</td>
       <td class="ff">${v.ff == null ? '<span class="muted">?</span>' : v.ff.toFixed(2)}</td>
-      <td class="muted">${esc(v.bsH)}</td>
-      <td class="${sc}">${esc(v.state)}</td>
-      <td class="${v.hosp != null && v.hosp < 30 ? 'soon' : sc}">${v.hosp == null ? '' : hms(v.hosp)}</td>
+      <td class="muted opt">${esc(v.bsH)}</td>
+      <td class="${sc} opt">${esc(v.state)}</td>
+      <td class="${v.hosp != null && v.hosp < 30 ? 'soon' : sc}">${v.hosp == null ? '' : hms(v.hosp)}${v.hosp == null && v.state !== 'Okay' ? `<span class="mstate">${esc(v.state)}</span>` : ''}</td>
       <td><a class="atk" title="Attack" target="_blank" rel="noopener"
              href="${attackUrl(v.id)}">⚔️</a>
           <button class="cp" data-id="${v.id}" title="Copy: ${esc(copyText(v))}">${Date.now() - (copied[v.id] || 0) < 1500 ? '✓' : '📋'}</button></td></tr>`;
@@ -335,10 +383,20 @@ function hms(s) {
   return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60);
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
-  const k = th.dataset.k;
-  st.sort = { k, dir: st.sort.k === k ? -st.sort.dir : 1 }; render();
+document.querySelectorAll('th[data-k]').forEach(th => {
+  th.insertAdjacentHTML('beforeend', ' <span class="arr"></span>');
+  th.title = 'Sort A–Z / Z–A';
+  th.onclick = () => {
+    const k = th.dataset.k;
+    st.sort = { k, dir: st.sort.k === k ? -st.sort.dir : 1 }; render();
+  };
 });
+function updateArrows() {   // ▲ = A–Z (ascending), ▼ = Z–A (descending) on the active column
+  document.querySelectorAll('th[data-k]').forEach(th => {
+    th.querySelector('.arr').textContent = th.dataset.k === st.sort.k ? (st.sort.dir === 1 ? '▲' : '▼') : '';
+  });
+}
+updateArrows();
 </script>
 </body>
 </html>

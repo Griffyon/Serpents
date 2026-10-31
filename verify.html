@@ -75,8 +75,10 @@
 </main>
 
 <script>
-// Endpoint of the TornAPI server that stores the keys (POST). Set this to the public HTTPS address of the server.
-const VERIFY_API = 'https://CHANGE-ME.example.com/verify';
+// Endpoint of the TornAPI server that stores the keys (POST).
+// TEMPORARY: points at the TornAPI running on the user's own machine, for testing. Replace it with the public HTTPS
+// address of the server (for example https://<host>/verify) before real use.
+const VERIFY_API = 'http://localhost:5196/verify';
 
 const TORN = 'https://api.torn.com/v2', FF = 'https://ffscouter.com/api/v1';
 const KEY_RE = /^[A-Za-z0-9]{16}$/;

@@ -294,7 +294,7 @@ function render() {
   const cnt = all.length ? `(${nOn}/${nIdle})` : '';   // only touch the DOM when the numbers change
   if ($('actCount').textContent !== cnt) {
     $('actCount').textContent = cnt;
-    $('actCount').title = `${nOn} online / ${nIdle} idle`;
+    $('actCount').title = `(online/idle): ${nOn} online, ${nIdle} idle, counted over the whole faction`;
   }
   $('count').textContent = st.faction ? `${rows.length} of ${all.length} shown` : '';
   const { k, dir } = st.sort;

@@ -30,7 +30,7 @@ Storage (browser local storage):
 | Column | Meaning |
 |---|---|
 | User / ID / Lvl | Member name (links to the Torn profile), user ID and level. |
-| Status | A ball: green = online, orange = idle, gray = offline. Hover an idle or offline ball to see when the last action was (relative time plus the exact local date/time). Sorting puts online first, then idle, then offline. The column header shows `(online/idle)` counts for the whole faction (ignoring filters), updated whenever the numbers change. |
+| Status | A ball: green = online, orange = idle, gray = offline. Hover an idle or offline ball to see when the last action was (relative time plus the exact local date/time). Sorting puts online first, then idle, then offline. The column header shows `(online/idle)` counts for the whole faction (ignoring filters), updated whenever the numbers change. Hover the numbers for an explanation; hovering the rest of the header still shows the sort tooltip. |
 | FF | Fair Fight from FFScouter. `?` means FFScouter has no data for that player. |
 | Est. stats | FFScouter's battle-stat estimate. |
 | State | Torn state: Okay, Hospital, Traveling, Abroad, Jail, and so on. |

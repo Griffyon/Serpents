@@ -130,7 +130,7 @@
       <table>
         <thead><tr>
           <th data-k="name">User</th><th data-k="id" class="opt">ID</th><th data-k="level" class="opt">Lvl</th>
-          <th data-k="act">Status</th><th data-k="ff">FF</th><th data-k="bs" class="opt">Est. stats</th>
+          <th data-k="act">Status <span id="actCount" class="muted"></span></th><th data-k="ff">FF</th><th data-k="bs" class="opt">Est. stats</th>
           <th data-k="state" class="opt">State</th><th data-k="hosp">Hospital</th><th>Attack</th>
         </tr></thead>
         <tbody id="rows"></tbody>
@@ -290,6 +290,12 @@ function render() {
   const all = st.members.map(view);
   const rows = all.filter(passes);
   updateToggle();
+  const nOn = all.filter(v => v.act === 'Online').length, nIdle = all.filter(v => v.act === 'Idle').length;
+  const cnt = all.length ? `(${nOn}/${nIdle})` : '';   // only touch the DOM when the numbers change
+  if ($('actCount').textContent !== cnt) {
+    $('actCount').textContent = cnt;
+    $('actCount').title = `${nOn} online / ${nIdle} idle`;
+  }
   $('count').textContent = st.faction ? `${rows.length} of ${all.length} shown` : '';
   const { k, dir } = st.sort;
   updateArrows();

@@ -66,3 +66,13 @@ The page is responsive. On screens up to 640 px wide:
 - There is never a horizontal scrollbar.
 
 On wider screens the full table with all columns is shown; if it is too wide for your screen it scrolls sideways.
+
+## verify.html (Discord bot registration)
+`verify.html` is the page the Discord bot's `/verify` command links to (`verify.html?code=<one-time code>`).
+- Two fields: **Torn API key** and **FFScouter API key**. Both "Get key" buttons open `https://www.torn.com/preferences.php#tab=api`.
+- **Validate and register** checks both keys in the browser (Torn `GET /user/basic`, then FFScouter `get-stats` for your player ID). Each field shows a ✓ or the error.
+- **Fail hard:** if either key fails validation, the page shows the error, says "Registration failed. Nothing was saved." and sends nothing. An FFScouter failure tells the user to activate FFScouter manually following the FFScouter instructions and try again.
+- Only when both are valid are they POSTed as JSON `{ code, tornKey, ffScouterKey }` to the server address in the `VERIFY_API` constant at the top of the script. Set `VERIFY_API` to the public HTTPS address of the TornAPI server before publishing; while it still contains `CHANGE-ME` the page refuses to send.
+- On success the fields are cleared, the code is removed from the address bar and the page shows "You have completed registration and you may now close this page."
+- Without a `code` in the address the page redirects to `index.html` (relative, so it also works under the `/Serpents/` path on GitHub Pages).
+- Not verified: the exact FFScouter success/error shapes and the server endpoint (not built yet).

@@ -58,6 +58,10 @@ In the filter bar:
 - FFScouter rate limit (HTTP 429) shows a retry time in the status line.
 - FF shows `?` for everyone – the FFScouter key may lack data; check it on ffscouter.com.
 
+## Auto-login and logout
+- If keys are stored in this browser, the page logs in automatically on load and reopens the last faction.
+- Log out clears the stored keys and last faction (the filter panel preference is kept) and empties the key fields.
+
 ## Mobile
 The page is responsive. On screens up to 640 px wide:
 - The key fields, search box and buttons stack to full width and get larger touch targets.

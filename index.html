@@ -199,8 +199,10 @@ $('logout').onclick = () => {
   $('app').disabled = true; $('loginPanel').hidden = false; $('logout').hidden = true;
   $('tornKey').disabled = $('ffKey').disabled = false; $('loginMsg').textContent = '';
   $('rows').innerHTML = ''; $('factionTitle').textContent = ''; $('results').innerHTML = '';
-  // keys and last faction stay in localStorage; the key fields remain filled for a one-click login
+  try { localStorage.removeItem('tt-keys'); localStorage.removeItem('tt-faction'); } catch {}
+  $('tornKey').value = $('ffKey').value = ''; $('q').value = '';
 };
+if ($('tornKey').value && $('ffKey').value) $('login').click();   // stored keys: log in automatically
 
 // ---- faction search ----
 $('search').onclick = doSearch;

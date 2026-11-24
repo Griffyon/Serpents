@@ -75,10 +75,9 @@
 </main>
 
 <script>
-// Endpoint of the TornAPI server that stores the keys (POST).
-// TEMPORARY: points at the TornAPI running on the user's own machine, for testing. Replace it with the public HTTPS
-// address of the server (for example https://<host>/verify) before real use.
-const VERIFY_API = 'http://localhost:5196/verify';
+// Endpoint of the TornBot server that stores the keys (POST): the QNAP reverse proxy (HTTPS) in front of the bot.
+// For local testing against a bot on this machine use 'http://localhost:5196/verify'.
+const VERIFY_API = 'https://griffyon2.myqnapcloud.com:8948/verify';
 
 const TORN = 'https://api.torn.com/v2', FF = 'https://ffscouter.com/api/v1';
 const KEY_RE = /^[A-Za-z0-9]{16}$/;

@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>War - Torn Targets</title>
+<style>
+  :root { --bg:#14161a; --panel:#1e2127; --line:#2e333b; --text:#e6e8eb; --muted:#8b929c; --accent:#6aa9ff;
+          --ok:#4cc38a; --warn:#e8b04a; --bad:#e5604f; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f5f7; --panel:#fff; --line:#d9dce1; --text:#1c1f24; --muted:#6a7280; --accent:#1f6feb; --ok:#1a8a5a; --warn:#a8741a; --bad:#c33a2a; }
+  }
+  * { box-sizing:border-box }
+  [hidden] { display:none !important }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,sans-serif; padding:16px; }
+  main { max-width:860px; margin:0 auto }
+  h1 { font-size:18px; margin:0 }
+  .topbar { justify-content:space-between; margin-bottom:12px }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; min-width:0 }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center }
+  .field { margin-bottom:14px }
+  label.lbl { display:block; font-weight:600; margin-bottom:4px }
+  input, button { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:6px 10px; min-height:36px }
+  input { flex:1; min-width:0; font-family:ui-monospace,Consolas,monospace }
+  button { cursor:pointer; white-space:nowrap } button:hover:not(:disabled) { border-color:var(--accent) }
+  button:disabled { opacity:.5; cursor:not-allowed }
+  a.btn { display:inline-flex; align-items:center; min-height:36px; padding:6px 10px; border:1px solid var(--line); border-radius:6px;
+          color:var(--accent); text-decoration:none; background:var(--bg); white-space:nowrap }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600 }
+  button.stop { background:var(--bad); border-color:var(--bad); color:#fff; font-weight:600 }
+  .hint { color:var(--muted); font-size:13px; margin-top:4px }
+  .status { font-size:13px; margin-top:4px; min-height:1.4em }
+  .ok { color:var(--ok) } .err { color:var(--bad) } .muted { color:var(--muted) } .warn { color:var(--warn) }
+  table { width:100%; border-collapse:collapse }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap }
+  th { color:var(--muted); font-weight:600 }
+  .wrap { overflow-x:auto }
+  .ball { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:middle; cursor:help;
+          box-shadow:0 1px 2px rgba(0,0,0,.45), inset 0 -2px 3px rgba(0,0,0,.3) }
+  .ball.on   { background:radial-gradient(circle at 35% 30%, #b6f5cf 0, #3fd07f 35%, #1a8a4a 100%) }
+  .ball.idle { background:radial-gradient(circle at 35% 30%, #ffe0b0 0, #f5a030 35%, #b86a0c 100%) }
+  .ball.off  { background:radial-gradient(circle at 35% 30%, #e4e6ea 0, #9aa0a8 35%, #5c626b 100%) }
+  .hosp { color:var(--bad) }
+  td.soon { background:var(--bad); color:#fff; font-weight:700; font-variant-numeric:tabular-nums }
+  .ff { font-variant-numeric:tabular-nums; font-weight:600 }
+  a.atk { text-decoration:none; font-size:18px }
+  button.cp { background:none; border:0; padding:0; margin-left:8px; font-size:18px; line-height:1; min-height:0; cursor:pointer }
+  button.cp:hover:not(:disabled) { border:0; filter:brightness(1.3) }
+  /* "Your target now" card */
+  .card { border:2px solid var(--warn); border-radius:8px; padding:12px; margin-top:10px; background:var(--bg) }
+  .card.claimed { border-color:var(--ok) }
+  .card .title { font-size:18px; font-weight:700; overflow-wrap:anywhere }
+  .card .big { font-size:22px; font-variant-numeric:tabular-nums; font-weight:700 }
+  .card .online { color:var(--bad); font-weight:700 }
+  .card a.atk { font-size:26px } .card button.cp { font-size:24px }
+  @keyframes flash { 50% { background:var(--warn); } }
+  .card.new { animation:flash .6s ease-in-out 4 }
+  @media (max-width:640px) {
+    body { padding:10px; font-size:15px }
+    input, button, a.btn { min-height:40px }
+    .keyrow { flex-wrap:wrap } .keyrow input { flex-basis:100% }
+    #toggle { flex:1 1 100% }
+    a.atk, button.cp { font-size:20px; padding:2px }
+    /* card layout: two lines per target, no sideways scrolling */
+    .wrap { overflow-x:hidden }
+    table, tbody { display:block } thead { display:none }
+    tbody tr { display:grid; grid-template-columns:24px minmax(0,1fr) auto; grid-template-areas:"act name ff" "state state btn";
+               align-items:center; gap:2px 8px; padding:8px 0; border-bottom:1px solid var(--line) }
+    tbody td { display:block; border:0; padding:0; white-space:normal; min-width:0 }
+    tbody td:nth-child(1) { grid-area:act; text-align:center }
+    tbody td:nth-child(2) { grid-area:name; overflow-wrap:anywhere; font-size:16px }
+    tbody td:nth-child(3) { grid-area:state; padding-left:32px }
+    tbody td:nth-child(3).soon { padding:2px 8px; margin-left:32px; justify-self:start }
+    tbody td:nth-child(4) { grid-area:ff; font-size:16px }
+    tbody td:nth-child(5) { grid-area:btn; white-space:nowrap }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="row topbar"><h1>Torn Targets – War</h1><button id="logout" hidden>Log out</button></div>
+
+  <!-- login: the keys go to the server once; only the session token is kept in this browser -->
+  <div id="loginPanel" class="panel">
+    <div class="muted" style="margin-bottom:10px">Log in with your Torn API key and your FFScouter key to receive war targets without Discord.</div>
+    <div class="field">
+      <label class="lbl" for="tornKey">Torn API key</label>
+      <div class="row keyrow">
+        <input id="tornKey" type="password" autocomplete="off" spellcheck="false" placeholder="16 characters">
+        <a class="btn" href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener">Get Torn key</a>
+      </div>
+      <div class="hint">Torn → Settings → API Keys. A public-access key is enough.</div>
+      <div id="tornMsg" class="status"></div>
+    </div>
+    <div class="field">
+      <label class="lbl" for="ffKey">FFScouter API key</label>
+      <div class="row keyrow">
+        <input id="ffKey" type="password" autocomplete="off" spellcheck="false" placeholder="16 characters">
+        <a class="btn" href="https://ffscouter.com" target="_blank" rel="noopener">Get FFScouter key</a>
+      </div>
+      <div class="hint">FFScouter must be activated for your account first, following the FFScouter instructions.</div>
+      <div id="ffMsg" class="status"></div>
+    </div>
+    <button id="login" class="primary">Log in</button>
+    <div id="loginMsg" class="status" role="status"></div>
+    <div class="hint">Your keys are sent over HTTPS to the Torn Targets server and stored encrypted. They are never saved in this browser.</div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="panel">
+      <div class="row">
+        <button id="toggle" class="primary">Start</button>
+        <span id="who"></span>
+      </div>
+      <div id="netMsg" class="status"></div>
+      <div id="cards"></div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <strong>Your group's targets</strong><span id="count" class="muted"></span>
+      </div>
+      <div id="ffNote" class="status"></div>
+      <div class="wrap">
+        <table>
+          <thead><tr><th>Status</th><th>Name</th><th>State</th><th>FF</th><th>Attack</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// Base address of the TornBot server (the /war/* endpoints): the QNAP reverse proxy (HTTPS) in front of the bot.
+// For local testing against a bot on this machine use 'http://localhost:5196'.
+const WAR_API = 'https://griffyon2.myqnapcloud.com:8948';
+
+const KEY_RE = /^[A-Za-z0-9]{16}$/;
+const POLL_MS = 4000;                 // also the heartbeat: the server counts a web attacker as ready only while polls arrive
+const TOKEN_KEY = 'tw-token';
+const $ = id => document.getElementById(id);
+const st = { me: null, timer: null, seen: new Set(), first: true, busy: false, askedNotify: false, flashId: null };
+
+function say(el, text, cls) { el.textContent = text; el.className = 'status ' + (cls || ''); }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const now = () => Math.floor(Date.now() / 1000);
+function hms(s) {
+  s = Math.max(0, s);
+  const p = n => String(n).padStart(2, '0');
+  return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60);
+}
+const attackUrl = id => `https://www.torn.com/page.php?sid=attack&user2ID=${id}`;
+const profileUrl = id => `https://www.torn.com/profiles.php?XID=${id}`;
+function getToken() { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } }
+function setToken(t) { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {} }
+
+// ---------- server calls ----------
+class AuthError extends Error {}
+async function api(path, method = 'GET', body) {
+  const headers = { Authorization: 'Bearer ' + getToken() };
+  if (body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(WAR_API + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) throw new AuthError(j.error || 'Your session has ended. Log in again.');
+  if (!r.ok) throw new Error(j.error || ('The server answered HTTP ' + r.status));
+  return j;
+}
+
+// ---------- login / logout ----------
+$('login').onclick = async () => {
+  const tk = $('tornKey').value.trim(), fk = $('ffKey').value.trim();
+  let good = true;
+  if (!KEY_RE.test(tk)) { say($('tornMsg'), 'The Torn key must be 16 letters/digits.', 'err'); good = false; } else say($('tornMsg'), '');
+  if (!KEY_RE.test(fk)) { say($('ffMsg'), 'The FFScouter key must be 16 letters/digits.', 'err'); good = false; } else say($('ffMsg'), '');
+  if (!good) return;
+  $('login').disabled = true; say($('loginMsg'), 'Checking your keys…', 'muted');
+  try {
+    const r = await fetch(WAR_API + '/war/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ tornKey: tk, ffScouterKey: fk }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The server answered HTTP ' + r.status));
+    $('tornKey').value = $('ffKey').value = '';
+    setToken(j.token);
+    say($('loginMsg'), '');
+    enterApp();
+  } catch (e) {
+    say($('loginMsg'), e instanceof TypeError ? 'Could not reach the server. Try again later.' : e.message, 'err');
+  } finally { $('login').disabled = false; }
+};
+
+$('logout').onclick = async () => {
+  try { await api('/war/logout', 'POST'); } catch {}
+  toLogin('');
+};
+
+function toLogin(msg) {
+  clearTimeout(st.timer); st.timer = null;
+  setToken(null);
+  st.me = null; st.seen.clear(); st.first = true;
+  $('app').hidden = true; $('logout').hidden = true; $('loginPanel').hidden = false;
+  say($('loginMsg'), msg, msg ? 'err' : '');
+  stopTitleFlash();
+}
+
+function enterApp() {
+  $('loginPanel').hidden = true; $('app').hidden = false; $('logout').hidden = false;
+  poll();
+}
+
+// ---------- polling (also the heartbeat) ----------
+async function poll() {
+  clearTimeout(st.timer);
+  try {
+    const me = await api('/war/me');
+    st.me = me; st.fetchedAt = now();
+    say($('netMsg'), '');
+    checkNewAssignments(me.assignments);
+    render();
+  } catch (e) {
+    if (e instanceof AuthError) { toLogin(e.message); return; }
+    say($('netMsg'), e instanceof TypeError ? 'Could not reach the server, retrying…' : e.message, 'err');
+  }
+  st.timer = setTimeout(poll, POLL_MS);
+}
+
+// ---------- ready toggle ----------
+$('toggle').onclick = async () => {
+  if (!st.me || st.busy) return;
+  const start = !st.me.ready;
+  if (start) { askNotifyPermission(); unlockAudio(); }
+  st.busy = true; $('toggle').disabled = true;
+  try { await api(start ? '/war/ready' : '/war/stop', 'POST'); st.me.ready = start; render(); poll(); }
+  catch (e) { if (e instanceof AuthError) toLogin(e.message); else say($('netMsg'), e.message, 'err'); }
+  finally { st.busy = false; $('toggle').disabled = false; }
+};
+
+// ---------- claim ----------
+$('cards').addEventListener('click', async e => {
+  const b = e.target.closest('button.take');
+  if (b) {
+    b.disabled = true;
+    try { await api('/war/claim', 'POST', { assignmentId: +b.dataset.id }); poll(); }
+    catch (err) { if (err instanceof AuthError) toLogin(err.message); else say($('netMsg'), err.message, 'err'); }
+    return;
+  }
+  copyClick(e);
+});
+$('rows').addEventListener('click', copyClick);
+
+// ---------- copy ----------
+// "<name> - <attack link> - [hh:mm:ss if in hospital] [ONLINE if online] [FF x.xx if known]" (same as index.html).
+// Built at click time so the hospital time is current.
+function copyText(v) {
+  const info = [];
+  if (v.hosp != null) info.push(hms(v.hosp));
+  if (v.online) info.push('ONLINE');
+  if (v.ff != null) info.push('FF ' + v.ff.toFixed(2));
+  const parts = [v.name, attackUrl(v.id)];
+  if (info.length) parts.push(info.join(' '));
+  return parts.join(' - ');
+}
+async function copyToClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return; } catch {}
+  const t = document.createElement('textarea');   // fallback for non-secure contexts
+  t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+  document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+}
+async function copyClick(e) {
+  const b = e.target.closest('button.cp'); if (!b) return;
+  const d = b.dataset, left = d.until ? +d.until - now() : 0;
+  await copyToClipboard(copyText({ id: +d.id, name: d.name, hosp: left > 0 ? left : null, online: d.online === '1', ff: d.ff ? +d.ff : null }));
+  b.textContent = '✓'; setTimeout(() => { b.textContent = '📋'; }, 1500);
+}
+const cpButton = (id, name, until, online, ff) =>
+  `<button class="cp" title="Copy name, attack link and info" data-id="${id}" data-name="${esc(name)}" data-until="${until ?? ''}"` +
+  ` data-online="${online ? 1 : 0}" data-ff="${ff ?? ''}">📋</button>`;
+
+// ---------- rendering ----------
+// render() rebuilds the page after each poll; tick() only updates the countdowns every second, so buttons are not
+// re-created under the user's finger.
+function ball(activity) {
+  const c = activity === 'Online' ? 'on' : activity === 'Idle' ? 'idle' : 'off';
+  const label = c === 'on' ? 'Online' : c === 'idle' ? 'Idle' : 'Offline';
+  return `<span class="ball ${c}" title="${label}" aria-label="${label}"></span>`;
+}
+const ffCell = ff => ff == null ? '<span class="muted">?</span>' : ff.toFixed(2);
+
+function render() {
+  const me = st.me; if (!me) return;
+  $('toggle').textContent = me.ready ? 'Stop' : 'Start';
+  $('toggle').className = me.ready ? 'stop' : 'primary';
+  $('who').innerHTML = `<strong>${esc(me.name)}</strong> · group ${me.groupNo} · ` +
+    (me.ready ? '<span class="ok">ready, targets come to this page</span>' : '<span class="muted">not ready</span>');
+
+  // "Your target now" cards
+  $('cards').innerHTML = (me.assignments || []).map(a => {
+    const claimed = a.stage === 'Claimed';
+    const until = a.kind === 'Hospital' ? a.until : null;
+    return `<div class="card${claimed ? ' claimed' : ''}${st.flashId === a.id ? ' new' : ''}">
+      <div class="muted">${claimed ? 'Your target (taken)' : 'Your target now'}</div>
+      <div class="row" style="justify-content:space-between">
+        <span class="title"><a href="${profileUrl(a.targetId)}" target="_blank" rel="noopener">${esc(a.targetName)}</a>
+          ${a.online ? ' <span class="online">⚠️ ONLINE</span>' : ''}</span>
+        <span><a class="atk" title="Attack" target="_blank" rel="noopener" href="${esc(a.attackUrl)}">⚔️</a>${cpButton(a.targetId, a.targetName, until, a.online, a.ff)}</span>
+      </div>
+      <div class="row" style="gap:16px">
+        <span data-cd="card" data-until="${until ?? ''}"></span>
+        <span>FF <span class="ff">${ffCell(a.ff)}</span></span>
+        ${a.reassignAt != null && !claimed ? `<span class="muted">reassigned in <span data-cd="re" data-until="${a.reassignAt}"></span></span>` : ''}
+      </div>
+      ${claimed ? '' : `<button class="take primary" data-id="${a.id}" style="margin-top:8px">I take this</button>`}
+    </div>`;
+  }).join('');
+
+  // FF state
+  if (me.ffRefreshing) say($('ffNote'), '⏳ Updating Fair Fight values, this list will refresh in a few seconds.', 'muted');
+  else if (me.ff === 'nokey') say($('ffNote'), 'No FFScouter key stored: FF is shown as -. Log out and log in again with your FFScouter key.', 'warn');
+  else if (me.ff === 'keyinvalid') say($('ffNote'), 'FFScouter rejected your key: FF is shown as -. Log out and log in again with a valid key.', 'warn');
+  else if (me.ffOldestFetchedAt && now() - me.ffOldestFetchedAt > 7200)
+    say($('ffNote'), 'FF values are from ' + Math.round((now() - me.ffOldestFetchedAt) / 3600) + ' h ago.', 'muted');
+  else say($('ffNote'), '');
+
+  $('count').textContent = `${me.targets.length} shown` + (me.hiddenCount ? `, ${me.hiddenCount} away (travelling, jail, …)` : '');
+  const ffOk = me.ff === 'ok';
+  $('rows').innerHTML = me.targets.map(t => {   // same order as the server returns
+    const until = t.state === 'Hospital' ? t.until : null;
+    const ff = ffOk ? t.ff : null;
+    return `<tr>
+      <td>${ball(t.activity)}</td>
+      <td><a href="${profileUrl(t.id)}" target="_blank" rel="noopener">${esc(t.name)}</a></td>
+      <td data-cd="row" data-until="${until ?? ''}" data-state="${esc(t.state)}"></td>
+      <td class="ff" title="${t.bsEstimate ? 'Est. stats ' + esc(t.bsEstimate) : ''}">${ffOk ? ffCell(t.ff) : '<span class="muted">-</span>'}</td>
+      <td><a class="atk" title="Attack" target="_blank" rel="noopener" href="${attackUrl(t.id)}">⚔️</a>${cpButton(t.id, t.name, until, t.activity === 'Online', ff)}</td>
+    </tr>`;
+  }).join('');
+  tick();
+}
+
+// Local countdowns: hospital time (an expired stay shows as Okay / "Attack now"), and the reassignment moment.
+function tick() {
+  document.querySelectorAll('[data-cd]').forEach(el => {
+    const u = el.dataset.until, left = u ? +u - now() : null;
+    const inHosp = left != null && left > 0;
+    if (el.dataset.cd === 're') el.textContent = hms(Math.max(0, left));
+    else if (el.dataset.cd === 'card')
+      el.innerHTML = inHosp ? 'Hospital <span class="big hosp">' + hms(left) + '</span>' : '<span class="big ok">Attack now</span>';
+    else {
+      const state = el.dataset.state === 'Hospital' ? 'Okay' : el.dataset.state;
+      el.textContent = inHosp ? hms(left) : state;
+      el.className = inHosp ? (left < 30 ? 'soon' : 'hosp') : '';
+    }
+  });
+}
+setInterval(tick, 1000);
+
+// ---------- new-target alerts: beep, flashing title, vibration, notification ----------
+function checkNewAssignments(list) {
+  const ids = new Set((list || []).filter(a => a.stage !== 'Claimed').map(a => a.id));
+  const fresh = [...ids].filter(id => !st.seen.has(id));
+  st.seen = new Set([...st.seen].filter(id => ids.has(id)).concat(fresh));
+  if (st.first) { st.first = false; if (!fresh.length) return; }   // already open on reload: still alert once
+  if (!fresh.length) return;
+  const a = list.find(x => x.id === fresh[0]);
+  st.flashId = a.id; setTimeout(() => { if (st.flashId === a.id) st.flashId = null; }, 3000);
+  alertUser(a);
+}
+
+let audio = null;
+function unlockAudio() {   // browsers only allow sound after a user gesture: create the context on the Start click
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}
+}
+function beep() {
+  try {
+    unlockAudio(); if (!audio) return;
+    [0, 0.25].forEach(t => {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = 'square'; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.15, audio.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + t + 0.18);
+      o.connect(g).connect(audio.destination);
+      o.start(audio.currentTime + t); o.stop(audio.currentTime + t + 0.2);
+    });
+  } catch {}
+}
+
+const baseTitle = document.title;
+let titleTimer = null;
+function flashTitle(text) {
+  stopTitleFlash();
+  let on = false;
+  titleTimer = setInterval(() => { on = !on; document.title = on ? '🎯 ' + text : baseTitle; }, 800);
+}
+function stopTitleFlash() { clearInterval(titleTimer); titleTimer = null; document.title = baseTitle; }
+window.addEventListener('focus', stopTitleFlash);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) stopTitleFlash(); });
+
+function askNotifyPermission() {
+  if (st.askedNotify || !('Notification' in window)) return;
+  st.askedNotify = true;
+  if (Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+}
+
+function alertUser(a) {
+  const text = 'New target: ' + a.targetName + (a.online ? ' (ONLINE)' : '');
+  beep();
+  if (document.hidden || !document.hasFocus()) flashTitle(text);
+  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {}
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification('Torn war target', { body: text, tag: 'war-' + a.id });
+      n.onclick = () => { window.focus(); n.close(); };
+    }
+  } catch {}
+}
+
+// ---------- start: resume a stored session ----------
+if (getToken()) enterApp();
+</script>
+</body>
+</html>
